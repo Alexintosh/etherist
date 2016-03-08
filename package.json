@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "postinstall": "mkdir -p data",
-    "start": "node poloniex.js"
+    "start": "./bin/track"
   },
   "dependencies": {
     "autobahn": "*"

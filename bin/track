@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+"use strict"
+
+const Poloniex = require(__dirname + '/../lib/poloniex')
+const poloniex = new Poloniex()
+poloniex.track()

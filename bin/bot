@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+
+import os
+import click
+import telepot
+import time
+import shelve
+import tailer
+import json
+import datetime
+from threading import Thread
+
+DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + '/../data'
+
+class Analytics:
+
+    def __init__(self):
+        self.data = {}
+
+    def run(self):
+        self.thread = Thread(target=self.track_ticker)
+        self.thread.start()
+
+    def get_ticker(self):
+        return self.data['last_ticker']
+
+
+    def track_ticker(self):
+        for line in tailer.follow(open(DATA_DIR + "/ticker.jsons")):
+            ticker = json.loads(line)
+            self.data['last_ticker'] = ticker
+            #click.echo("New Ticker update:" + line)
+
+class Bot:
+
+    def __init__(self, analytics, token):
+        self.analytics = analytics
+        self.bot = telepot.Bot(token)
+        self.me = self.bot.getMe()
+        self.bot.notifyOnMessage(self._on_message)
+        self.db = shelve.open(DATA_DIR + '/bot.shelve.db')
+        click.echo("Telegram Bot running as @{}".format(self.me['username']))
+
+    def run(self):
+        while 1:
+            time.sleep(10)
+
+    def help(self, user_id):
+        self.bot.sendMessage(user_id,
+            "Hi there, I'm here to keep you up to date on everything related to the Ethereum currency\n" +
+            "Here are some commands:\n\n" +
+            "/price  -  Get latest ETH/BTC price information\n" +
+            "\nAll information used comes from the http://poloniex.com/ exchange")
+
+    def price(self, user_id):
+        try:
+            last_ticker = self.analytics.get_ticker()
+            text = "Last price: %s\n" % last_ticker['last']
+            text += "24H Low: %s\n" % last_ticker['low24hr']
+            text += "24H High: %s\n" % last_ticker['high24hr']
+            text += "Last update: %s\n" % self._ts_to_date_str(last_ticker['_ts'])
+        except KeyError:
+            text = "No ticker data available currently"
+        self.bot.sendMessage(user_id, text)
+
+    def _ts_to_date_str(self, ts):
+        return datetime.datetime.fromtimestamp(int(ts)/1000).strftime('%Y-%m-%d %H:%M:%S')
+
+    def _on_message(self, msg):
+        click.echo(click.style("Received message: %s" % msg, fg='black'))
+        text = msg['text']
+        user_id = msg['from']['id']
+        if text == '/help' or text == '/start':
+            self.help(user_id)
+        if text == '/price':
+            self.price(user_id)
+
+@click.command()
+@click.option('--token', prompt='Telegram Bot Token', help='The person to greet.')
+
+def hello(token):
+    """Telegram Bot for Ether Currency Info"""
+    analytics = Analytics()
+    analytics.run()
+    bot = Bot(analytics, token)
+    bot.run()
+
+if __name__ == '__main__':
+    hello()

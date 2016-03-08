@@ -1,10 +1,19 @@
 
-Real-time Ethereum currency (Ether) data collector for automated trading purposes.
+Real-time Ethereum currency (Ether) data brokerage.
 
-## Setup
+## Data Collection
 
 ```
 npm install
-npm start
+./bin/track
 ```
 All events are collected in `data/*.jsons`.
+
+## Telgram Brokerage Bot
+
+```
+pip install tailer
+pip install telepot
+pip install click
+./bin/bot --token <TELEGRAM BOT TOKEN>
+```
