@@ -25,6 +25,7 @@ connection.onopen = function (session) {
    });
 
    session.subscribe('ticker', (e) => {
+     if (e[0] != 'BTC_ETH') return
      let tickerEvents = [e]
      tickerEvents = tickerEvents.map(e => {
        return {
