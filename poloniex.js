@@ -11,19 +11,21 @@ const connection = new autobahn.Connection({
 });
 
 connection.onclose = function (reason, details) {
-  console.warn("Connection closed: " + reason + " ("+details+")")
+  console.warn("Connection closed: " + reason, details)
   console.warn("Reconnecting...")
   setTimeout(() => connection.open(), 5*1000)
 }
 
 connection.onopen = function (session) {
 
+  console.warn("Connected")
+
    session.subscribe('footer', (e) => {
-     events.store('exchange-stats', e);
+     events.store('exchange-stats', [e]);
    });
 
    session.subscribe('ticker', (e) => {
-     let tickerEvents = e.filter(e => e[0] == 'BTC_ETH')
+     let tickerEvents = [e]
      tickerEvents = tickerEvents.map(e => {
        return {
          last: e[1],
