@@ -1,0 +1,12 @@
+{
+  "name": "etherist",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "postinstall": "mkdir -p data",
+    "start": "node poloniex.js"
+  },
+  "dependencies": {
+    "autobahn": "*"
+  }
+}
