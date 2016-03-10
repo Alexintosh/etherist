@@ -65,4 +65,4 @@ class Visualize:
         if show:
             plt.show()
         else:
-            savefig(DATA_DIR + '/' + filename, bbox_inches='tight')
+            plt.savefig(DATA_DIR + '/' + filename, bbox_inches='tight')
