@@ -4,6 +4,7 @@ import telepot
 import shelve
 import click
 import visualize
+import re
 from datetime import datetime
 
 DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + '/../data'
@@ -29,7 +30,7 @@ class Bot:
             "Here are some commands:\n\n" +
             "/price  -  Get latest ETH/BTC price information\n" +
             "/candlesticks 10m  -  Get candlestick chart for last 10 minutes\n" +
-            "\nAll information used comes from the http://poloniex.com/ exchange")
+            "\nAll information used comes from the http://poloniex.com/ exchange", reply_markup=self._default_reply_markup())
 
     def price(self, user_id):
         try:
@@ -42,10 +43,8 @@ class Bot:
             text = "No ticker data available currently"
         self.bot.sendMessage(user_id, text)
 
-    def candlesticks(self, user_id, arguments):
-        interval = '10m'
-        if len(arguments) > 0:
-            interval = arguments[0]
+    def candlesticks(self, user_id, interval):
+        response = self.bot.sendMessage(user_id, "Generating chart..", reply_markup=self._default_reply_markup())
         time_range = self._interval_to_seconds(interval)
         interval = 60
         time_series = self.analytics.ticker_time_series(interval=interval, time_range=time_range)
@@ -54,11 +53,28 @@ class Bot:
         fd = open(DATA_DIR + '/' + filename, 'rb')
         response = self.bot.sendPhoto(user_id, fd)
 
+    def settings(self, user_id):
+        self.bot.sendMessage(user_id, "No alerts set", reply_markup=self._default_reply_markup())
+
+    def alerts(self, user_id):
+        self.bot.sendMessage(user_id, "Not implemented :)", reply_markup=self._default_reply_markup())
+
     def _interval_to_seconds(self, interval):
         return int(interval[0:len(interval)-1])*60
 
     def _ts_to_date_str(self, ts):
         return datetime.fromtimestamp(int(ts)/1000).strftime('%Y-%m-%d %H:%M:%S')
+
+    def _fuzzy_match(self, text, strs):
+        for str in strs:
+            if text.lower().strip() == str:
+                return True
+            if text.lower().strip() == ('/' + str):
+                return True
+        return False
+
+    def _default_reply_markup(self):
+        return {'keyboard': [['Price', 'Candlesticks'], ['Alerts', 'Settings']], 'resize_keyboard': True}
 
     def _on_message(self, msg):
         click.echo(click.style("Received message: %s" % msg, fg='black'))
@@ -68,9 +84,14 @@ class Bot:
         if len(arguments) == 0:
             return
         command = arguments[0]
-        if command == '/help' or command == '/start':
+        if self._fuzzy_match(text, ["back", "help", "start"]):
             self.help(user_id)
-        if command == '/price':
+        if self._fuzzy_match(text, ["price"]):
             self.price(user_id)
-        if command == '/candlesticks':
-            self.candlesticks(user_id, arguments[1:])
+        if self._fuzzy_match(text, ["settings"]):
+            self.settings(user_id)
+        if re.compile('^[0-9]+m$').match(command):
+            self.candlesticks(user_id, command)
+        if self._fuzzy_match(text, ["candlesticks"]):
+            reply_markup = {'keyboard': [['Back'], ['5m','10m'], ['60m','480m']], 'resize_keyboard': True}
+            self.bot.sendMessage(user_id, "What timeframe?", reply_markup=reply_markup)
