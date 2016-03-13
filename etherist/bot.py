@@ -54,10 +54,39 @@ class Bot:
         response = self.bot.sendPhoto(user_id, fd)
 
     def settings(self, user_id):
-        self.bot.sendMessage(user_id, "No alerts set", reply_markup=self._default_reply_markup())
+        self.bot.sendMessage(user_id, "Not implemented yet :)")
 
     def alerts(self, user_id):
-        self.bot.sendMessage(user_id, "Not implemented :)", reply_markup=self._default_reply_markup())
+        reply_markup = {'keyboard': [['Back'], ['New Alert', 'Clear Alerts']], 'resize_keyboard': True}
+        alerts = self._get_user_setting(user_id, 'alerts', [])
+        if len(alerts) == 0:
+            alerts_text = 'No alerts configured yet'
+        else:
+            alerts_text = 'Configured alerts:\n'
+            for alert in alerts:
+                alerts_text += '- {} alert when price {} {}'.format(alert['type'], alert['threshold'], alert['value'])
+        self.bot.sendMessage(user_id, alerts_text, reply_markup=reply_markup)
+
+    def new_alert(self, user_id, capture):
+        if len(capture) == 0:
+            reply_markup = {'keyboard': [['Back'], ['When price reaches above'], ['When price reaches below']], 'resize_keyboard': True}
+            self._set_user_setting(user_id, 'capture', ['new-alert'])
+            self.bot.sendMessage(user_id, "Choose a threshold", reply_markup=reply_markup)
+        elif len(capture) == 2:
+            reply_markup = {'keyboard': [['Back']], 'resize_keyboard': True}
+            self._set_user_setting(user_id, 'capture', capture)
+            self.bot.sendMessage(user_id, capture[1] + " what value should I alert you?", reply_markup=reply_markup)
+        elif len(capture) == 3:
+            alert = {'type': 'price', 'threshold': capture[1], 'value': float(capture[2])}
+            self._unset_user_setting(user_id, 'capture')
+            self.bot.sendMessage(user_id, "Awesome, {} {}, I will alert you.".format(capture[1], capture[2]), reply_markup=self._default_reply_markup())
+            alerts = self._get_user_setting(user_id, 'alerts', [])
+            alerts.append(alert)
+            self._set_user_setting(user_id, 'alerts', alerts)
+
+    def clear_alerts(self, user_id):
+        self._unset_user_setting(user_id, 'alerts')
+        self.bot.sendMessage(user_id, "Cleared out all configured alerts.", reply_markup=self._default_reply_markup())
 
     def _interval_to_seconds(self, interval):
         return int(interval[0:len(interval)-1])*60
@@ -86,12 +115,43 @@ class Bot:
         command = arguments[0]
         if self._fuzzy_match(text, ["back", "help", "start"]):
             self.help(user_id)
+            self._unset_user_setting(user_id, 'capture')
+        capture = self._get_user_setting(user_id, 'capture', [])
+        if len(capture) > 0 and capture[0] == 'new-alert':
+            capture.append(text)
+            self.new_alert(user_id, capture)
+            return
         if self._fuzzy_match(text, ["price"]):
             self.price(user_id)
         if self._fuzzy_match(text, ["settings"]):
             self.settings(user_id)
+        if self._fuzzy_match(text, ["alerts"]):
+            self.alerts(user_id)
+        if self._fuzzy_match(text, ["new alert"]):
+            self.new_alert(user_id, [])
+        if self._fuzzy_match(text, ["clear alerts"]):
+            self.clear_alerts(user_id)
         if re.compile('^[0-9]+m$').match(command):
             self.candlesticks(user_id, command)
         if self._fuzzy_match(text, ["candlesticks"]):
             reply_markup = {'keyboard': [['Back'], ['5m','60m'], ['10m','120m']], 'resize_keyboard': True}
             self.bot.sendMessage(user_id, "What timeframe?", reply_markup=reply_markup)
+
+    def _get_user_setting(self, user_id, key, new_value=None):
+        settings = self.db.get(str(user_id), {})
+        return settings.get(key, new_value)
+
+    def _set_user_setting(self, user_id, key, value):
+        settings = self.db.get(str(user_id), {})
+        settings[key] = value
+        self.db[str(user_id)] = settings
+        self.db.sync()
+
+    def _unset_user_setting(self, user_id, key):
+        settings = self.db.get(str(user_id), {})
+        try:
+            del settings[key]
+        except KeyError:
+            pass
+        self.db[str(user_id)] = settings
+        self.db.sync()
