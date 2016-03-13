@@ -32,7 +32,7 @@ class Visualize:
         ax.autoscale_view()
         yticks = ax.get_yticks()
         x_start = min(yticks) - ((max(yticks) - min(yticks)) * 0.60)
-        ylim([x_start,max(yticks)])
+        plt.ylim([x_start,max(yticks)])
         ax.grid(True)
         plt.setp( plt.gca().get_xticklabels(), rotation=45, horizontalalignment='right')
         if volume_overlay != None:

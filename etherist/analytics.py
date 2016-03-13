@@ -82,9 +82,12 @@ class Analytics:
 
     def track_ticker(self):
         for line in tailer.follow(open(DATA_DIR + "/ticker.jsons")):
-            ticker = json.loads(line)
-            self.data['last_ticker'] = ticker
-            #click.echo("New Ticker update:" + line)
+	    try:
+            	ticker = json.loads(line)
+            	self.data['last_ticker'] = ticker
+            	#click.echo("New Ticker update:" + line)
+            except ValueError:
+		pass
 
     def _compute_time_series(self, events, from_ts, to_ts, interval, field, operations, as_datetime):
         time_series = []
