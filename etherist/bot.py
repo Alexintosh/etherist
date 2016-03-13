@@ -93,5 +93,5 @@ class Bot:
         if re.compile('^[0-9]+m$').match(command):
             self.candlesticks(user_id, command)
         if self._fuzzy_match(text, ["candlesticks"]):
-            reply_markup = {'keyboard': [['Back'], ['5m','10m'], ['60m','480m']], 'resize_keyboard': True}
+            reply_markup = {'keyboard': [['Back'], ['5m','60m'], ['10m','120m']], 'resize_keyboard': True}
             self.bot.sendMessage(user_id, "What timeframe?", reply_markup=reply_markup)
