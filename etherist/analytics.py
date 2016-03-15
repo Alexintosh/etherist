@@ -1,17 +1,18 @@
-import os
+
 import tailer
 import json
 import time
 import math
 from datetime import datetime
 from threading import Thread
-
-DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + '/../data'
+import const
 
 class Analytics:
 
     def __init__(self):
         self.data = {}
+        self.triggers = []
+        self.on_trigger = None
 
     def run(self):
         self.thread = Thread(target=self.track_ticker)
@@ -22,7 +23,7 @@ class Analytics:
 
     def ticker_time_series(self, limit=10000, now_ts=0, interval=60, time_range=3600, field='last', operations=['first', 'last', 'max', 'min'], as_datetime=False):
         events = []
-        for line in tailer.tail(open(DATA_DIR + "/ticker.jsons"), limit):
+        for line in tailer.tail(open(const.DATA_DIR + "/ticker.jsons"), limit):
             events.append(json.loads(line))
         now = int(math.ceil(time.time()))
         if now_ts > 0:
@@ -31,7 +32,7 @@ class Analytics:
 
     def volume_time_series(self, limit=10000, now_ts=0, interval=60, trade_type='ask', time_range=3600, field='amount', operations=['sum'], min_amount=0, as_datetime=False):
         events = []
-        for line in tailer.tail(open(DATA_DIR + "/trades.jsons"), limit):
+        for line in tailer.tail(open(const.DATA_DIR + "/trades.jsons"), limit):
             event = json.loads(line)
             events.append(event)
         now = int(math.ceil(time.time()))
@@ -81,11 +82,22 @@ class Analytics:
         return time_series
 
     def track_ticker(self):
-        for line in tailer.follow(open(DATA_DIR + "/ticker.jsons")):
+        for line in tailer.follow(open(const.DATA_DIR + "/ticker.jsons")):
 	    try:
             	ticker = json.loads(line)
             	self.data['last_ticker'] = ticker
-            	#click.echo("New Ticker update:" + line)
+                if self.on_trigger != None:
+                    for trigger in self.triggers:
+                        executed = trigger.get('executed', False)
+                        last_price = float(ticker['last'])
+                        if executed == False and trigger['threshold'] == const.THRESHOLD_PRICE_ABOVE and last_price > trigger['value']:
+                            self.on_trigger('activate', trigger, ticker)
+                        if executed == True and trigger['threshold'] == const.THRESHOLD_PRICE_ABOVE and last_price <= trigger['value']:
+                            self.on_trigger('deactivate', trigger, ticker)
+                        if executed == False and trigger['threshold'] == const.THRESHOLD_PRICE_BELOW and last_price < trigger['value']:
+                            self.on_trigger('activate', trigger, ticker)
+                        if executed == True and trigger['threshold'] == const.THRESHOLD_PRICE_BELOW and last_price >= trigger['value']:
+                            self.on_trigger('deactivate', trigger, ticker)
             except ValueError:
 		pass
 

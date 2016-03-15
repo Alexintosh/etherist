@@ -5,10 +5,10 @@ from datetime import datetime
 import time
 from matplotlib.dates import DateFormatter, epoch2num
 from matplotlib.finance import candlestick_ochl, volume_overlay
+import const
 
 from tzlocal import get_localzone
 
-DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + '/../data'
 
 class Visualize:
 
@@ -73,5 +73,5 @@ class Visualize:
         if show:
             plt.show()
         else:
-            plt.savefig(DATA_DIR + '/' + filename, bbox_inches='tight')
+            plt.savefig(const.DATA_DIR + '/' + filename, bbox_inches='tight')
             plt.close()
