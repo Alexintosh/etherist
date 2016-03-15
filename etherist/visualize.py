@@ -74,3 +74,4 @@ class Visualize:
             plt.show()
         else:
             plt.savefig(DATA_DIR + '/' + filename, bbox_inches='tight')
+            plt.close()
