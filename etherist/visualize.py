@@ -3,28 +3,53 @@ from pylab import *
 import matplotlib.pyplot as plt
 from datetime import datetime
 import time
+import numpy as np
+import seaborn as sns
+import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter, epoch2num
 from matplotlib.finance import candlestick_ochl, volume_overlay
 import const
 
 from tzlocal import get_localzone
 
-
 class Visualize:
+
+    def bar_chart(self, time_series, interval=60, show=False, palette="BuGn_d", filename='bar_chart.png'):
+        data = np.array(time_series)
+        dates = [self._format_time(x, interval) for x in data[:,0]]
+        sns.set(style="darkgrid")
+        sns.barplot(x=dates, y=data[:,1], palette=palette)
+        if show:
+            plt.show()
+        else:
+            plt.savefig(const.DATA_DIR + '/' + filename, bbox_inches='tight')
+            plt.close()
+
+    def line_chart(self, time_series, interval=60, show=False, filename='line_chart.png'):
+        data = np.array(time_series)
+        dates = [datetime.fromtimestamp(x) for x in data[:,0]]
+        sns.set(style="darkgrid")
+        fig, ax = plt.subplots()
+        plt.plot_date(x=dates, y=data[:,1], linestyle='-', markersize=6, marker='o')
+        tz = get_localzone()
+        ax.xaxis.set_major_formatter(self._date_formatter(interval, tz=tz))
+        ax.xaxis_date(tz=tz.zone)
+        if show:
+            plt.show()
+        else:
+            plt.savefig(const.DATA_DIR + '/' + filename, bbox_inches='tight')
+            plt.close()
 
     def candlestick_chart(self, time_series, interval=40, show=False, filename='candlestick.png', volume_overlay=None):
         tz = get_localzone()
-        xfmt = DateFormatter('%H:%M:%S', tz=tz.localize(datetime.now()).tzinfo)
         adjusted_time_series = []
         for item in time_series:
             item[0] = epoch2num(item[0])
-            #Prices2.append(tuple(item))
             adjusted_time_series.append(item)
         fig, ax = plt.subplots()
         fig.subplots_adjust(bottom=0.2)
 
-        ax.xaxis.set_major_formatter(xfmt)
-        #ax.xaxis.set_major_formatter(weekFormatter)
+        ax.xaxis.set_major_formatter(self._date_formatter(interval, tz=tz))
         days_interval = interval / 86400.0
         candlestick_ochl(ax, adjusted_time_series, width=(days_interval), colorup='green', colordown='red', alpha=0.9)
 
@@ -58,8 +83,8 @@ class Visualize:
             #ax2.set_xlim(min(dates),max(dates))
             # the y-ticks for the bar were too dense, keep only every third one
             ax2yticks = ax2.get_yticks()
-            print('yticks', ax2yticks)
-            print('yticks2', ax2yticks[::3])
+            #print('yticks', ax2yticks)
+            #print('yticks2', ax2yticks[::3])
             ax2.set_yticks(ax2yticks[::3])
 
             ax2.yaxis.set_label_position("right")
@@ -75,3 +100,18 @@ class Visualize:
         else:
             plt.savefig(const.DATA_DIR + '/' + filename, bbox_inches='tight')
             plt.close()
+
+    def _format_time(self, ts, interval=40):
+        dt = datetime.fromtimestamp(ts)
+        return datetime.strftime(dt, self._format_for_interval(interval))
+
+    def _date_formatter(self, interval, tz=get_localzone()):
+        return DateFormatter(self._format_for_interval(interval), tz=tz.localize(datetime.now()).tzinfo)
+
+    def _format_for_interval(self, interval):
+        format = "%H:%M"
+        if interval < 40:
+            format = "%H:%M:%S"
+        if interval >= 3600:
+            format = "%m/%d %I%p"
+        return format

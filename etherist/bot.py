@@ -71,6 +71,19 @@ class Bot:
         fd = open(const.DATA_DIR + '/' + filename, 'rb')
         response = self.bot.sendPhoto(user_id, fd)
 
+    def line_chart(self, user_id, interval, type):
+        response = self.bot.sendMessage(user_id, "Generating chart..", reply_markup=self._default_reply_markup())
+        time_range = self._interval_to_seconds(interval)
+        interval = 60
+        if type == 'volume':
+            time_series = self.analytics.volume_time_series(interval=interval, time_range=time_range)
+        else:
+            time_series = self.analytics.ticker_time_series(interval=interval, time_range=time_range)
+        filename = "line-chart-" + str(type) + "-" + str(time_range) + "-" + str(interval) + ".png"
+        self.visualize.line_chart(time_series, show=False, filename=filename)
+        fd = open(const.DATA_DIR + '/' + filename, 'rb')
+        response = self.bot.sendPhoto(user_id, fd)
+
     def settings(self, user_id):
         self.bot.sendMessage(user_id, "Not implemented yet :)")
 
@@ -118,6 +131,26 @@ class Bot:
         self._unset_user_setting(user_id, 'alerts')
         self.bot.sendMessage(user_id, "Cleared out all configured alerts.", reply_markup=self._default_reply_markup())
 
+    def charts(self, user_id, capture):
+        if len(capture) == 0:
+            reply_markup = {'keyboard': [['Back'], ['Price', 'Trade Volume'], ['Candlesticks']], 'resize_keyboard': True}
+            self._set_user_setting(user_id, 'capture', capture)
+            self.bot.sendMessage(user_id, "What kind of chart would you like?", reply_markup=reply_markup)
+            self._set_user_setting(user_id, 'capture', ['charts'])
+        elif len(capture) == 2:
+            reply_markup = {'keyboard': [['Back'], ['5m','60m'], ['10m','120m']], 'resize_keyboard': True}
+            self.bot.sendMessage(user_id, "What timeframe?", reply_markup=reply_markup)
+            self._set_user_setting(user_id, 'capture', capture)
+        elif len(capture) == 3:
+            interval = capture[2]
+            self._unset_user_setting(user_id, 'capture')
+            if self._fuzzy_match(capture[2], ["candlesticks"]):
+                self.candlesticks(user_id, interval)
+            elif self._fuzzy_match(capture[2], ['trade volume']):
+                self.line_chart(user_id, interval, 'volume')
+            else:
+                self.line_chart(user_id, interval, 'price')
+
     def _set_alert_triggers(self):
         self.analytics.triggers = []
         for user_id in self.db:
@@ -141,7 +174,7 @@ class Bot:
         return False
 
     def _default_reply_markup(self):
-        return {'keyboard': [['Price', 'Candlesticks'], ['Alerts', 'Settings']], 'resize_keyboard': True}
+        return {'keyboard': [['Price', 'Charts'], ['Alerts', 'Settings']], 'resize_keyboard': True}
 
     def _on_message(self, msg):
         click.echo(click.style("Received message: %s" % msg, fg='black'))
@@ -159,6 +192,10 @@ class Bot:
             capture.append(text)
             self.new_alert(user_id, capture)
             return
+        if len(capture) > 0 and capture[0] == 'charts':
+            capture.append(text)
+            self.charts(user_id, capture)
+            return
         if self._fuzzy_match(text, ["price"]):
             self.price(user_id)
         if self._fuzzy_match(text, ["settings"]):
@@ -169,11 +206,9 @@ class Bot:
             self.new_alert(user_id, [])
         if self._fuzzy_match(text, ["clear alerts"]):
             self.clear_alerts(user_id)
-        if re.compile('^[0-9]+m$').match(command):
-            self.candlesticks(user_id, command)
-        if self._fuzzy_match(text, ["candlesticks"]):
-            reply_markup = {'keyboard': [['Back'], ['5m','60m'], ['10m','120m']], 'resize_keyboard': True}
-            self.bot.sendMessage(user_id, "What timeframe?", reply_markup=reply_markup)
+        if self._fuzzy_match(text, ["charts"]):
+            self.charts(user_id, [])
+
 
     def _price_text(self):
         try:

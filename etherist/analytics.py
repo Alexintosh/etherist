@@ -21,7 +21,9 @@ class Analytics:
     def get_ticker(self):
         return self.data['last_ticker']
 
-    def ticker_time_series(self, limit=10000, now_ts=0, interval=60, time_range=3600, field='last', operations=['first', 'last', 'max', 'min'], as_datetime=False):
+    def ticker_time_series(self, limit=-1, now_ts=0, interval=60, time_range=3600, field='last', operations=['first', 'last', 'max', 'min'], as_datetime=False):
+        if limit < 0:
+            limit = self._limit_for_time_range(time_range, 'ticker')
         events = []
         for line in tailer.tail(open(const.DATA_DIR + "/ticker.jsons"), limit):
             events.append(json.loads(line))
@@ -30,11 +32,15 @@ class Analytics:
             now = int(math.ceil(now_ts / 1000.0))
         return self._compute_time_series(events, now - time_range, now, interval, field, operations, as_datetime)
 
-    def volume_time_series(self, limit=10000, now_ts=0, interval=60, trade_type='ask', time_range=3600, field='amount', operations=['sum'], min_amount=0, as_datetime=False):
+    def volume_time_series(self, limit=-1, now_ts=0, interval=60, trade_type='ask', time_range=3600, field='amount', operations=['sum'], min_amount=0, as_datetime=False):
+        if limit < 0:
+            limit = self._limit_for_time_range(time_range, 'trades')
         events = []
+        print('loading %s trades', limit)
         for line in tailer.tail(open(const.DATA_DIR + "/trades.jsons"), limit):
             event = json.loads(line)
             events.append(event)
+        print('loading done')
         now = int(math.ceil(time.time()))
         if now_ts > 0:
             now = int(math.ceil(now_ts / 1000.0))
@@ -100,6 +106,13 @@ class Analytics:
                             self.on_trigger('deactivate', trigger, ticker)
             except ValueError:
 		pass
+
+    def _limit_for_time_range(self, time_range, type='ticker'):
+        factor = 0.75
+        if type == 'trades':
+            factor = 13
+        limit = int(round(time_range * factor))
+        return limit
 
     def _compute_time_series(self, events, from_ts, to_ts, interval, field, operations, as_datetime):
         time_series = []
