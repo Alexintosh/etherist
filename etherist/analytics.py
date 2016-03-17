@@ -36,11 +36,9 @@ class Analytics:
         if limit < 0:
             limit = self._limit_for_time_range(time_range, 'trades')
         events = []
-        print('loading %s trades', limit)
         for line in tailer.tail(open(const.DATA_DIR + "/trades.jsons"), limit):
             event = json.loads(line)
             events.append(event)
-        print('loading done')
         now = int(math.ceil(time.time()))
         if now_ts > 0:
             now = int(math.ceil(now_ts / 1000.0))

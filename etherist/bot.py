@@ -144,12 +144,12 @@ class Bot:
         elif len(capture) == 3:
             interval = capture[2]
             self._unset_user_setting(user_id, 'capture')
-            if self._fuzzy_match(capture[2], ["candlesticks"]):
-                self.candlesticks(user_id, interval)
-            elif self._fuzzy_match(capture[2], ['trade volume']):
-                self.line_chart(user_id, interval, 'volume')
+            if self._fuzzy_match(capture[1], ["candlesticks"]):
+                return self.candlesticks(user_id, interval)
+            elif self._fuzzy_match(capture[1], ['trade volume']):
+                return self.line_chart(user_id, interval, 'volume')
             else:
-                self.line_chart(user_id, interval, 'price')
+                return self.line_chart(user_id, interval, 'price')
 
     def _set_alert_triggers(self):
         self.analytics.triggers = []
